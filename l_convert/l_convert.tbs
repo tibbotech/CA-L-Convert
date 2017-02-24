@@ -1,0 +1,478 @@
+'***********************************************************************************************************
+'			"UNLIMITED" MATH (RESTRAINED ONLY BY THE 255 CHARACTER LIMIT OF TIBBO BASIC STRINGS)
+'***********************************************************************************************************
+
+include "l_convert.tbh"
+
+'----------------------------------------------------------------------
+declare function l_base_conv(byval inputstr as string , byval c_type as Convertion_Type) as string
+declare function any_to_any(byref hex_str as string,ori_base as byte,des_base as byte) as string
+declare function is_bigger(byval str_a as string , byval str_b as string) as byte
+declare function trans_dec(byref str_input as string) as byte 
+
+'======================================================================
+function l_base_conv(byval inputstr as string , byval c_type as Convertion_Type) as string
+	dim  result as string
+
+	'verify
+	if inputstr="" then 
+		result ="0"
+		exit function
+	end if
+	
+	result=""
+	select case c_type
+	case CT_HEX_TO_BIN
+		result=any_to_any(inputstr,"16","2")
+	case CT_HEX_TO_DEC
+		result=any_to_any(inputstr,"16","10")
+	case CT_OCT_TO_BIN
+		result=any_to_any(inputstr,"8","2")
+	case CT_OCT_TO_DEC
+		result=any_to_any(inputstr,"8","10")
+	case CT_DEC_TO_HEX
+		result=any_to_any(inputstr,"10","16")
+	case CT_DEC_TO_BIN
+		result=any_to_any(inputstr,"10","2")'
+	case CT_DEC_TO_OCT
+		result=any_to_any(inputstr,"10","8")'
+	case else
+		result="0"
+	end select
+
+	l_base_conv = result
+end function
+
+'------------------------------------------------------------------------------
+function any_to_any(byref hex_str as string,ori_base as byte,des_base as byte) as string
+
+        dim x,y,z,q,f as byte
+        dim temp_arr as string
+		
+		if len(hex_str)>254 then  'avoid 
+			any_to_any="overflow"
+			exit function
+		end if
+        for f=1 to len(hex_str)
+                insert(hex_str,f,chr(val("&h"+mid(hex_str,f,1))))
+        next f
+
+        z=len(hex_str)
+        any_to_any=""
+        while(z>0)
+                temp_arr=""
+                x=0 'the last one
+                q=0 '"non-zero encountered" flag- to avoid leading zeroes
+                for f=0 to z-1
+                        x=x*ori_base+asc(mid(hex_str,f+1,1))
+                        if x>=des_base then
+                                y=x/des_base
+                                x=x-y*des_base
+                                temp_arr=temp_arr+chr(y)
+                                q=1
+                        else
+                                if q>0 then          
+                                        temp_arr=temp_arr+chr(0)
+                                end if
+                                if f>=z-1 then
+                                        goto w1		
+                                end if
+                        end if
+                next f
+w1:
+                any_to_any=chr(x)+any_to_any
+                z=len(temp_arr)
+                hex_str=temp_arr
+        wend
+
+		if len(any_to_any)>254 then  'error control because of the "for statement" and "byte type"
+			any_to_any="overflow"
+			exit function
+		end if
+		
+        for f=1 to len(any_to_any)
+			dim  tmp as byte
+			tmp=0
+			tmp=asc(mid(any_to_any,f,1))
+			if tmp >=0 and tmp<=9 then
+                insert(any_to_any,f,chr(asc(mid(any_to_any,f,1))+&h30))
+			else
+				insert(any_to_any,f,chr(asc(mid(any_to_any,f,1))+&h37))
+			end if
+        next f
+end function
+
+'---------------------------------------------------------------------- 
+function l_add(byval str_a as string ,byval str_b as string) as string 
+	dim t1(100) as char 
+	dim t2(100) as char
+	dim result(100) As char
+	dim len_1,len_2 as byte
+	dim i,j as byte
+	dim add_result as string 
+	dim len_tmp as byte
+	dim u_bound as byte 'the upper bound
+	dim ip_type as byte ' 0=dec 1=oct 2= hex
+	
+	for i = 0 to 99 'must clear first 
+		t1(i)=0
+		t2(i)=0
+		result(i)=0
+	next i
+	ip_type=trans_dec(str_b) ' convert to DEC
+	ip_type=trans_dec(str_a) 'the "base" of the reult determined by first "input" 
+	
+	if str_a="" then str_a="0" 'verify
+	if str_b="" then str_b="0"	
+	len_1=len(str_a)
+	len_2=len(str_b)
+	if len_1>97 or len_2> 97 then 'avoid result >100
+		add_result="overflow"
+		l_add=add_result
+		exit function
+	end if
+	for i= len_1 to 1 step -1
+		t1(len_1-i+1)= val(mid(str_a,i,1))
+	next i
+	for i= len_2 to 1 step -1
+		t2(len_2-i+1)= val(mid(str_b,i,1))
+	next i
+	if len_1 > len_2 then len_tmp = len_1 else len_tmp = len_2
+	for i = 1 To len_tmp + 1
+		result(i + 1) = (t1(i) + t2(i) + result(i)) / 10
+		result(i) = (t1(i) + t2(i) + result(i)) mod 10
+		add_result=str(result(i))+add_result
+		if result(i)=0 and i=len_tmp + 1 then add_result=right(add_result,len(add_result)-1) 'remove leading zero
+	next i
+	
+	select case ip_type
+	case 0
+		l_add=add_result
+	case 1
+		l_add="&O"+l_base_conv(add_result,CT_DEC_TO_OCT)
+	case 2
+		l_add="&H"+l_base_conv(add_result,CT_DEC_TO_HEX)'if l_add's len >253 then it will be truncated
+	end select
+	'the following step has to be done
+	for i = 0 to 99
+		t1(i)=0
+		t2(i)=0
+		result(i)=0
+	next i
+	
+end function
+
+'----------------------------------------------------------------------
+function l_mul(byval str_a as string , byval str_b as string) as string 
+	dim t1(100) as char
+	dim t2(100) as char
+	dim result(100) As char
+	dim len_1,len_2 as byte 
+	dim i,j as byte
+	dim mul_result as string
+	dim u_bound as byte
+	dim ip_type as byte ' 0=dec 1=oct 2= hex
+	
+	for i = 0 to 99 'must clear first 
+		t1(i)=0
+		t2(i)=0
+		result(i)=0
+	next i
+	ip_type=trans_dec(str_b) ' convert to DEC
+	ip_type=trans_dec(str_a) 'the "base" of the reult determined by first "input" 
+	
+	if str_a="" then str_a="0" 'verify
+	if str_b="" then str_b="0"
+	len_1=len(str_a)      'get both length
+	len_2=len(str_b)
+	if len_1+len_2> 97 or len_1>97 or len_2> 97 then 'avoid result >100 digits
+		mul_result="overflow"
+		l_mul=mul_result
+		exit function
+	end if
+	for i= len_1 to 1 step -1                   'reverse string and put it into array
+		t1(len_1-i+1)= val(mid(str_a,i,1))
+	next i
+	for i= len_2 to 1 step -1
+		t2(len_2-i+1)= val(mid(str_b,i,1))
+	next i
+	for i= 1 To len_2    'digit by digit
+		for j = 1 To len_1
+			result(i + j) = ((t1(j) * t2(i)) + result(i + j - 1)) / 10 + result(i + j)
+			result(i + j - 1) = (t1(j) * t2(i) + result(i + j - 1)) mod 10
+			u_bound = i + j 
+			if result(i + j)=0 then u_bound = i + j - 1 '
+		next j
+	next i
+	for i = u_bound to 1  step -1'reverse back
+		mul_result = mul_result + str(result(i))
+	next i  
+
+	select case ip_type
+	case 0
+		l_mul=mul_result
+	case 1
+		l_mul="&O"+l_base_conv(mul_result,CT_DEC_TO_OCT)
+	case 2
+		l_mul="&H"+l_base_conv(mul_result,CT_DEC_TO_HEX)'if mul_result's len >253 then it will be truncated
+	end select
+	'the following step has to be done
+	for i = 0 to 99
+		t1(i)=0
+		t2(i)=0
+		result(i)=0
+	next i
+end function
+
+'----------------------------------------------------------------------
+function l_sub(byval str_a as string , byval str_b as string) as string 
+	dim t1(100) as char 
+	dim t2(100) as char
+	dim result(100) As char
+	dim len_1,len_2 as byte
+	dim i,j as byte
+	dim sub_result as string
+	dim tmpstring as string 'for switch
+	dim len_tmp as byte 'get longest length
+	dim u_bound as byte
+	dim ip_type as byte ' 0=dec 1=oct 2= hex
+	
+	for i = 0 to 99 'must clear first 
+		t1(i)=0
+		t2(i)=0
+		result(i)=0
+	next i
+	'verify
+	ip_type=trans_dec(str_b) ' convert to DEC
+	ip_type=trans_dec(str_a) 'the "base" of the reult determined by first "input" 
+	if str_a="" then str_a="0"
+	if str_b="" then str_b="0"
+	
+	select case is_bigger(str_a,str_b) 'only get difference
+	case 0 '< 
+		tmpstring=str_a
+		str_a=str_b
+		str_b=tmpstring
+	case 2 'equal
+		l_sub="0"
+		exit function
+	end select
+	
+	for i = 0 to 99 'clear array, or.....
+		t1(i)=0
+		t2(i)=0
+		result(i)=0
+	next i
+	
+	len_1=len(str_a)
+	len_2=len(str_b)
+	if len_1>97 or len_2> 97 then 'avoid 
+		sub_result="overflow"
+		l_sub=sub_result
+		exit function
+	end if
+	for i= len_1 to 1 step -1
+		t1(len_1-i+1)= val(mid(str_a,i,1))
+	next i
+	for i= len_2 to 1 step -1
+		t2(len_2-i+1)= val(mid(str_b,i,1))
+	next i
+	
+	if len_1 > len_2 then len_tmp = len_1 else len_tmp = len_2 
+	for i = 1 To len_tmp + 1
+		if (t1(i) + result(i)) < t2(i) then 'borrow
+			result(i) = (t1(i) - t2(i) + result(i) +10) 
+			result(i + 1) = -1
+			sub_result=str(result(i))+sub_result
+		else	
+			result(i)=(t1(i) + result(i) - t2(i) ) 
+			sub_result=str(result(i))+sub_result
+		end if
+		                 
+	next i
+	
+	do while mid(sub_result,1,1)="0"  'remove zero
+		if len(sub_result)<>1 then sub_result=right(sub_result,len(sub_result)-1)
+	loop  
+	
+	select case ip_type
+	case 0
+		l_sub=sub_result
+	case 1
+		l_sub="&O"+l_base_conv(sub_result,CT_DEC_TO_OCT)
+	case 2
+		l_sub="&H"+l_base_conv(sub_result,CT_DEC_TO_HEX)'if mul_result's len >253 then it will be truncated
+	end select
+	'the following step has to be done
+	for i = 0 to 99
+		t1(i)=0
+		t2(i)=0
+		result(i)=0
+	next i
+end function
+
+'----------------------------------------------------------------------
+function l_div(byval str_a as string , byval str_b as string) as string '
+	dim t1(100) as char 
+	dim result(100) As char
+	dim len_1,len_2 as byte
+	dim i,j as byte
+	dim u_bound as integer
+	dim div_result as string
+	dim tmp_rem as string 'remainder
+	dim tmp_div as string
+	dim offset as integer
+	dim bln_flag as boolean 'found first pos flag
+	dim temp as string 'temp=q*d
+	dim ip_type as byte ' 0=dec 1=oct 2= hex
+	
+	for i =0 to 99 'must clear first 
+		t1(i)=0
+		result(i)=0
+	next i	
+	
+	'verify
+	ip_type=trans_dec(str_b) ' convert to DEC
+	ip_type=trans_dec(str_a) 'the "base" of the reult determined by first "input" 
+	if str_a="" then str_a="0"
+	if str_b="" then str_b="0" 
+	if str_b="0" then 'can't be divided by zero
+		l_div=""
+		exit function
+	end if
+	
+	select case is_bigger(str_a,str_b)
+	case 0 '<
+		l_div="0"
+		exit function
+	case 2 'equal
+		l_div="1"
+		exit function
+	end select
+	
+	len_1=len(str_a)
+	len_2=len(str_b) 'div length
+	if len_1>97 or len_2> 97 then 'avoid 
+		div_result="overflow"
+		l_div=div_result
+		exit function
+	end if
+	
+	for i=1 to len_1
+		t1(i)= val(mid(str_a,i,1))
+	next i
+	
+	if len_1<len_2 then ' only do integer
+		l_div="0"
+		exit function
+	end if
+	
+	u_bound=0
+	tmp_div=str_b
+	offset=1
+	bln_flag=false
+	for i= 1 to len_1 
+		tmp_rem=tmp_rem+str(t1(i)) 'add next digit
+		if is_bigger(tmp_rem,tmp_div)<>0 then bln_flag=true'start pos flag (if diviedend >= divisor then true)
+		temp="0"
+		if bln_flag=true then
+			for j= 1 to 10
+				
+				temp=l_add(temp,tmp_div) 'temp=q*d, use addition
+				
+				select case is_bigger(temp,tmp_rem)
+				case 1	'bigger
+					temp=l_sub(temp,tmp_div) 'go back to the last value
+					tmp_rem=l_sub(tmp_rem,temp) 'remainder
+					result(offset)=j-1
+					u_bound = offset
+					offset=offset+1
+					if tmp_rem="0" then tmp_rem="" 'clear zero
+					exit for
+				case 2 'equal
+					tmp_rem="" 'remainder, clear zero
+					result(offset)=j
+					u_bound = offset
+					offset=offset+1
+					exit for
+					
+				end select
+			next j
+			temp="0"
+			do while mid(tmp_rem,1,1)="0"  'remove zero
+				if len(tmp_rem)<>1 then tmp_rem=right(tmp_rem,len(tmp_rem)-1)
+			loop  
+		end if
+	next i
+	
+	for i = 1 to u_bound 
+		div_result=div_result + str(result(i))
+	next i  	
+	
+	select case ip_type
+	case 0
+		l_div=div_result
+	case 1
+		l_div="&O"+l_base_conv(div_result,CT_DEC_TO_OCT)
+	case 2
+		l_div="&H"+l_base_conv(div_result,CT_DEC_TO_HEX)'if mul_result's len >253 then it will be truncated 
+	end select
+	
+	for i = 0 to 99
+		t1(i)=0
+		result(i)=0
+	next i
+end function
+
+'----------------------------------------------------------------------------
+function is_bigger(byval str_a as string , byval str_b as string) as byte '2-equal 1-yes 2- no
+	dim i as byte
+	
+	if str_a=str_b then
+		is_bigger=2
+		exit function
+	end if
+	if len(str_a)>len(str_b) then
+		is_bigger=1
+		exit function
+	else 
+		if len(str_a)=len(str_b) then
+			for i = 1 to len(str_a)
+				dim a,b as byte
+				a=val(mid(str_a,i,1))
+				b=val(mid(str_b,i,1))
+				if a>b then 
+					is_bigger=1
+					exit function
+				else 
+					if a<b then
+						is_bigger=0
+						exit function
+					end if
+				end if
+			next i
+		
+		end if
+		is_bigger=0
+		exit function
+	end if
+end function
+
+'----------------------------------------------------------------------------
+function trans_dec(byref str_input as string) as byte 
+'check if the input is with header "&H" or "&O". 
+'then convert it into DEC value,trans_dec=>>>0= no need to convert, 1=oct, 2=hex
+
+	select case left(str_input,2)
+	case "&H","&h" 'for normal
+		str_input=right(str_input,len(str_input)-2)
+		str_input=l_base_conv(str_input,CT_HEX_TO_DEC)
+		trans_dec=2
+	case "&O","&o"
+		str_input=right(str_input,len(str_input)-2)
+		str_input=l_base_conv(str_input,CT_OCT_TO_DEC)
+		trans_dec=1
+	case else
+		trans_dec=0	
+ 	end select
+end function

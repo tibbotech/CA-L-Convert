@@ -1,0 +1,3 @@
+'This file is for global definitions (that is, if you gonna have any)
+
+include "l_convert.tbh"

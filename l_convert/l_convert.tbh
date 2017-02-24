@@ -1,0 +1,26 @@
+enum Convertion_Type
+		CT_HEX_TO_DEC,
+		CT_DEC_TO_HEX,
+		CT_DEC_TO_BIN,
+        CT_HEX_TO_BIN,
+	    CT_OCT_TO_BIN,
+		CT_OCT_TO_DEC'
+        CT_DEC_TO_OCT
+		
+end enum
+
+enum Input_Type
+        IP_OCT = 0
+	    IP_HEX = 1
+end enum
+
+const CRLF = chr(&H0D)+ chr(&H0A)
+
+
+declare function l_base_conv(byval inputstr as string , byval c_type as Convertion_Type) as string
+
+declare function l_add(byval str_a as string ,byval str_b as string) as string
+declare function l_mul(byval str_a as string , byval str_b as string) as string 'Base-10
+declare function l_sub(byval str_a as string , byval str_b as string) as string
+declare function l_div(byval str_a as string , byval str_b as string) as string 
+

@@ -1,0 +1,22 @@
+include "global.tbh"
+
+'==================================================================================
+sub on_sys_init
+	dim f As Byte
+
+	net.ip="192.168.1.50" '<----- CHANGE AS NEEDED
+
+	'setup buffers of sockets 8-15 (will be used for HTTP)
+	For f=8 To 15
+		sock.num=f
+		sock.protocol= PL_SOCK_PROTOCOL_TCP
+		sock.inconmode= PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
+		sock.httpportlist="80"
+		sock.reconmode = PL_SOCK_RECONMODE_0 'stop reconnect when new connection
+		sock.txbuffrq(5) 'you need this buffer for HTTP requests and replies
+		sock.varbuffrq(3) 'you need this buffer to get HTTP variables
+		sock.redir(PL_REDIR_SOCK0 + sock.num) 'this will allow us to avoid wasting memory on the RX buffer
+	Next f
+	sys.buffalloc ' Performs actual memory allocation, as per previous requests.
+
+end sub

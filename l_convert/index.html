@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD W3 HTML//EN">
+
+<HTML>
+	<head>
+		<title>Unlimited math</title>
+	</head>
+		<BODY>
+			<div align="center">
+ 
+				<img src="logo.gif" border="0"><br><br>
+				<b><i>Tibbo Converter</i></b><br>
+				Virtually unlimited math (restrained only by the 255 character limit of Tibbo BASIC strings)<br><br>
+
+				<hr>
+
+				<i><font size=1><b> Convertion: </b>All input values must be unsigned.</font></i><br><br>
+				<form action="index.html" method="get" enctype="multipart/form-data">
+					HEX to DEC: <Input Type="text" name="hex_to_dec" maxlength="255">   <Input Type="submit" value="Convert"> 
+				</form>
+				<form action="index.html" method="get" enctype="multipart/form-data">
+					DEC to HEX: <Input Type="text" name="dec_to_hex" maxlength="255">   <Input Type="submit" value="Convert"> 
+				</form>
+				<form action="index.html" method="get" enctype="multipart/form-data">
+					DEC to BIN : <Input Type="text" name="dec_to_bin" maxlength="254">   <Input Type="submit" value="Convert"> 
+				</form>
+				<form action="index.html" method="get" enctype="multipart/form-data">
+					HEX to BIN : <Input Type="text" name="hex_to_bin" maxlength="254">   <Input Type="submit" value="Convert">  
+				</form>
+	   
+				<form action="index.html" method="get" enctype="multipart/form-data">
+					OCT to BIN : <Input Type="text" name="oct_to_bin" maxlength="254">   <Input Type="submit" value="Convert"> 
+				</form>
+				<form action="index.html" method="get" enctype="multipart/form-data">
+					OCT to DEC :<Input Type="text" name="oct_to_dec" maxlength="254">   <Input Type="submit" value="Convert"> 
+				</form>
+
+				<hr>
+
+				<i><b><font size=1>Arithmetic:</font></b></i>
+				<i><font size=1> (a) Both of the operands  must be unsigned.</font></i>
+				<i><font size=1> (b) The result will always be positive.(ex:5-7=2)</font></i>
+				<i><font size=1> (c) The base of the result will be determined by the base of the first operand .</font></i>
+				<form action="index.html" method="get" enctype="multipart/form-data">
+					<Input Type="text" name="str_a" size="50" maxlength="100"> 
+					<select name=op>
+						<option value=add selected>+
+						<option value=sub>-
+						<option value=mul>*
+						<option value=div>/
+						<Input Type="text" name="str_b" size="50" maxlength="100"> 
+						<Input Type="submit" value="Calculate"> 
+					</select>
+				</form>
+
+				<hr>
+				<i><b><font size=1>The result:</font></b></i><br>
+<?
+include "global.tbh"
+
+'----------------------------------------------------------------------
+dim i as integer
+dim s as string
+dim var_1,var_2,var_3 as string 
+dim n_flag as byte
+dim k as byte
+dim result as string
+dim inputstr,inputstr2 as string
+
+'======================================================================
+s=sock.gethttprqstring(255)
+if instr(1,s,"hex_to_dec=",1)<>0 then n_flag=1
+if instr(1,s,"dec_to_hex=",1)<>0 then n_flag=2
+if instr(1,s,"dec_to_bin=",1)<>0 then n_flag=3
+if instr(1,s,"hex_to_bin=",1)<>0 then n_flag=4
+if instr(1,s,"oct_to_bin=",1)<>0 then n_flag=5
+if instr(1,s,"oct_to_dec=",1)<>0 then n_flag=6
+if instr(1,s,"str_a=",1)<>0 then n_flag=7
+
+select case n_flag
+
+case 1,2,3,4,5,6
+	s = right(s,len(s)-11)
+	s = s + sock.gethttprqstring(255)   'get the rest of data
+	if instr(1,s," ",1)<>0 then 
+		var_1=mid(s,1,instr(1,s," ",1)-1) 
+	else 
+		var_1=s'means that the length of var is 255 
+	end if
+	inputstr="input(" +str(len(var_1))+"):" 
+	inputstr2=var_1                         'inputstr2(255) stored the value of input
+	var_1= l_base_conv(var_1,n_flag-1)      'get the final result
+case 7
+	s = right(s,len(s)-6)
+	s = s + sock.gethttprqstring(6)
+	if instr(1,s,"&",1)<>0 then 
+		var_1=mid(s,1,instr(1,s,"&",1)-1) 
+		select case left(var_1,4) 'replace %26H to &H
+		case "%26H","%26h","%26O","%26o"
+			var_1="&"+right(var_1,len(var_1)-3)
+			s="&"+right(s,len(s)-3)
+		end select
+	else 
+		var_1=s'get Var
+		select case left(var_1,4) 'replace %26H to &H
+		case "%26H","%26h","%26O","%26o"
+			var_1="&"+right(var_1,len(var_1)-3)
+			s="&"+right(s,len(s)-3)
+		end select
+	end if
+	
+	s = right(s,len(s)-len(var_1)-4)
+	s = s + sock.gethttprqstring(10)
+	if instr(1,s,"&",1)<>0 then 
+		var_2=mid(s,1,instr(1,s,"&",1)-1) 
+	else 
+		var_2=s'get Var
+	end if
+	
+	s = right(s,len(s)-len(var_2)-7)
+	s = s + sock.gethttprqstring(255)
+	if instr(1,s," ",1)<>0 then 
+		var_3=mid(s,1,instr(1,s," ",1)-1) 
+		select case left(var_3,4) 'replace %26H to &H
+		case "%26H","%26h","%26O","%26o"
+			var_3="&"+right(var_3,len(var_3)-3)
+			s="&"+right(s,len(s)-3)
+		end select
+	else 
+		var_3=s'get Var
+		select case left(var_3,4) 'replace %26H to &H
+		case "%26H","%26h","%26O","%26o"
+			var_3="&"+right(var_3,len(var_3)-3)
+			s="&"+right(s,len(s)-3)
+		end select
+	end if
+
+	select case var_2
+	case "add"
+		result=l_add(var_1,var_3)
+		var_2=" + "
+	case "sub"
+		result=l_sub(var_1,var_3)
+		var_2=" - "
+	case "mul"
+		result=l_mul(var_1,var_3)
+		var_2=" * "
+	case "div"
+		result=l_div(var_1,var_3)
+		var_2=" / "
+	end select
+
+end select
+if n_flag<7 then
+	sock.setdata(inputstr)
+	sock.send
+	sock.setdata(inputstr2)
+	sock.send
+	sock.setdata("<br>")
+	sock.send
+	sock.setdata("Output(" +str(len(var_1))+"):" )
+	sock.send
+	sock.setdata(var_1)
+	sock.send
+else
+	sock.setdata(var_1)
+	sock.send
+	sock.setdata(var_2)
+	sock.send
+	sock.setdata(var_3)
+	sock.send
+	sock.setdata("=" +"<br>")
+	sock.send
+	sock.setdata(result)
+	sock.send
+end if
+
+'======================================================================
+?>
+
+			</div>
+		</BODY>
+</HTML>
+
